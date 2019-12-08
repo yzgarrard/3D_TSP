@@ -5,62 +5,50 @@ close;
 startTime = cputime;
 
 %% Create a map with stops
-figure;
-rng('shuffle'); %Random number generator using current time as seed
-%x = [-400, 400, 400, -400];    %x-coordinates of polygon
-%y = [400, 400, -400, -400];    %y-coordinates of polygon
-nStops = 150;    %Number of stops
-stopsLon = zeros(nStops, 1);    %Initialize array for lons
-stopsLat = stopsLon;            %Initialize array for lats
-randomPoints = true;
-n = 1;  %Counter for stop generation
-while (n <= nStops)
-    xp = 0;
-    yp = 0;
-    %if inpolygon(xp, yp, x, y)
-    %if (n+2 > nStops)
-    %break;
-    %end
-    if (~randomPoints)
-        stopsLon(n) = 0;
-        stopsLat(n) = (n) / nStops;
-        stopsLon(n+1) = 1;
-        stopsLat(n+1) = (n) / nStops;
-        n = n + 2;
-    end
-    if (randomPoints)
-        stopsLon(n) = rand;
-        stopsLat(n) = rand;
-        n = n + 1;
-    end
-    
-    %end
-end
-%stopsLon(nStops) = -1;
-%stopsLat(nStops) = -1;
-%plot(x, y, 'Color', 'red');
-hold on
-plot(stopsLon, stopsLat, '*b')
-hold off
+figureHandle = figure;
+hold;
+[X,Y] = meshgrid(0:1:100*pi,0:1:100*pi);
+Z = 400*sin(X./100) + 400*(cos(Y./100-pi)+1);
+surface(X,Y,Z,'EdgeColor','none','FaceAlpha',0.5);
+[A,B] = meshgrid(0:20*pi:100*pi,0:20*pi:100*pi);
+xypoints = [A(:), B(:)];
+A = xypoints(:,1);
+B = xypoints(:,2);
+C = 400*sin(A./100) + 400*(cos(B./100-pi)+1)+50;
+surfPoints = [A,B,C];
+scatter3(A, B, C);
+k=1:length(A); 
+text(A,B,C,num2str(k'))
+view(3)
 
-%pause(1)
+stops_x = A;
+stops_y = B;
+stops_z = C;
 
 %% Create all possible edges between two stops
-edges = nchoosek(1:nStops, 2);
-
+edges = nchoosek(1:length(surfPoints), 2);
 
 %% Calculate distances between each point
-distances = hypot(stopsLat(edges(:,1)) - stopsLat(edges(:,2)), ...
-    stopsLon(edges(:,1)) - stopsLon(edges(:,2)));
+distances = sqrt(  (A(edges(:,1)) - A(edges(:,2))).^2 ...
+                  +(B(edges(:,1)) - B(edges(:,2))).^2 ...
+                  +(C(edges(:,1)) - C(edges(:,2))).^2);
 lengthDistance = length(distances);  %How many elements in distances (number of edges)
+
+% In case I need an example of how to plot a line
+% testX = [surfPoints(1,1), surfPoints(8,1)];
+% testY = [surfPoints(1,2), surfPoints(8,2)];
+% testZ = [surfPoints(1,3), surfPoints(8,3)];
+% plot3(testX,testY,testZ);
+
+nStops = length(surfPoints);
 
 %% Equality constraints
 
 %This makes a sparse array. No idea why its done this way
 %First type of equality constraint. States that the number of
 %edges must equal the number of nodes
-Aeq = spones(1:length(edges));  %Creates array from 1 to length(edges), then sets all nonzeros to 1
-beq = nStops;
+%Aeq = spones(1:length(edges));  %Creates array from 1 to length(edges), then sets all nonzeros to 1
+%beq = nStops;
 
 %Second type of equality constraint makes it so two edges are
 %attached to each node.
@@ -72,18 +60,19 @@ beq = nStops;
 %row 5 of Aeq would be 0, 0, 1, 0, 1, 1, for edges that contain node 4
 %rows 2-5 of beq would be 2, to show that only two edges are allowed per
 %node
-Aeq = [Aeq; spalloc(nStops, length(edges), nStops * (nStops - 1))]; %Extends Aeq
+Aeq = [];
+%[Aeq; spalloc(nStops, length(edges), nStops * (nStops - 1))]; %Extends Aeq
 for ii = 1:nStops
     whichEdges = (edges == ii); %Find the trips that include stop ii
     whichEdges = sparse(sum(whichEdges, 2));    %include trips where ii is at either end
-    Aeq(ii + 1, :) = whichEdges';%Append to constraint matrix
+    Aeq(ii, :) = whichEdges';%Append to constraint matrix
 end
-beq = [beq; 2 * ones(nStops, 1)];
+beq = [2 * ones(nStops, 1)];
 
 %% Binary bounds
 
-%Make all the variables binary. Finally, something I don't have to analyze
-%for half an hour!
+%Make all the variables binary so that for each edge between two nodes, it
+% either traversed or not traversed
 intcon = 1:lengthDistance;  %Set all edge variables to integers
 lb = zeros(lengthDistance, 1);  %Lower bound of 0
 ub = ones(lengthDistance, 1);   %Upper bound of 1
@@ -98,7 +87,7 @@ opts = optimoptions('intlinprog', 'Display', 'off', ...
 
 segments = find(x_tsp); % Get indices of lines on optimal path
 lh = zeros(nStops,1); % Use to store handles to lines on plot
-lh = updateSalesmanPlot(lh,x_tsp,edges,stopsLon,stopsLat);
+lh = update3DPlot(lh,x_tsp,edges,stops_x,stops_y,stops_z);
 title('Solution with Subtours');
 
 %% Detect subtours
@@ -131,7 +120,7 @@ while numTours > 1
     [x_tsp, costopt, exitflag, output] = intlinprog(distances, intcon, A, b, Aeq, beq, lb, ub, opts);
     
     %Update plot
-    lh = updateSalesmanPlot(lh, x_tsp, edges, stopsLon, stopsLat);
+    lh = update3DPlot(lh, x_tsp, edges,stops_x,stops_y,stops_z);
     
     %Recount subtours
     subTours = detectSubtours(x_tsp, edges);

@@ -8,6 +8,8 @@ function subTours = detectSubtours(prevSolution,edges)
 %starting node, then add 1 to the number of subtours. Repeat as along as
 %there are unvisited nodes. If the answer > 1, there are subtours.
 
+% Commented by YiZhuang Garrard
+
 prevSolution = round(prevSolution); % correct for not-exactly integers
 prevSolutionEdgeIndices = find(prevSolution); % indices of the trips that exist in the solution
 prevSolutionEdges = edges(prevSolutionEdgeIndices,:); % the collection of edges in the solution
