@@ -7,31 +7,28 @@ startTime = cputime;
 %% Create a map with stops
 figureHandle = figure;
 hold;
-[X,Y] = meshgrid(0:1:100*pi,0:1:100*pi);
+[X,Y] = meshgrid(-20*pi:1:110*pi,-20*pi:1:110*pi);
 Z = 400*sin(X./100) + 400*(cos(Y./100-pi)+1);
-surface(X,Y,Z,'EdgeColor','none','FaceAlpha',0.5);
-[A,B] = meshgrid(0:20*pi:100*pi,0:20*pi:100*pi);
-xypoints = [A(:), B(:)];
-A = xypoints(:,1);
-B = xypoints(:,2);
-C = 400*sin(A./100) + 400*(cos(B./100-pi)+1)+50;
-surfPoints = [A,B,C];
-scatter3(A, B, C);
-k=1:length(A); 
-text(A,B,C,num2str(k'))
+surface(X,Y,Z,'EdgeColor','none','FaceAlpha',0.87);
+[U,V] = meshgrid(0:20*pi:100*pi,0:20*pi:100*pi);
+xypoints = [U(:), V(:)];
+stops_x = xypoints(:,1);
+stops_y = xypoints(:,2);
+stops_z = 400*sin(stops_x./100) + 400*(cos(stops_y./100-pi)+1)+50;
+surfPoints = [stops_x,stops_y,stops_z];
+scatter3(stops_x, stops_y, stops_z);
+k=1:length(stops_x); 
+text(stops_x,stops_y,stops_z,num2str(k'))
 view(3)
 
-stops_x = A;
-stops_y = B;
-stops_z = C;
 
 %% Create all possible edges between two stops
 edges = nchoosek(1:length(surfPoints), 2);
 
 %% Calculate distances between each point
-distances = sqrt(  (A(edges(:,1)) - A(edges(:,2))).^2 ...
-                  +(B(edges(:,1)) - B(edges(:,2))).^2 ...
-                  +(C(edges(:,1)) - C(edges(:,2))).^2);
+distances = sqrt(  (stops_x(edges(:,1)) - stops_x(edges(:,2))).^2 ...
+                  +(stops_y(edges(:,1)) - stops_y(edges(:,2))).^2 ...
+                  +(stops_z(edges(:,1)) - stops_z(edges(:,2))).^2);
 lengthDistance = length(distances);  %How many elements in distances (number of edges)
 
 % In case I need an example of how to plot a line
@@ -50,9 +47,11 @@ nStops = length(surfPoints);
 %Aeq = spones(1:length(edges));  %Creates array from 1 to length(edges), then sets all nonzeros to 1
 %beq = nStops;
 
-%Second type of equality constraint makes it so two edges are
-%attached to each node.
-%Essentially, if node ii is part of an edge, make it part of the constraint
+%These equality constraints makes it so two edges are
+%attached to each node. The edges represents the drone going in and out
+% of the node
+%
+%If node ii is part of an edge, make it part of the constraint
 %e.g. (1,2), (1,3), (1,4), (2,3), (2,4), (3,4) are all edges
 %row 2 of Aeq would be 1, 1, 1, 0, 0, 0, for edges that contain node 1
 %row 3 of Aeq would be 1, 0, 0, 1, 1, 0, for edges that contain node 2

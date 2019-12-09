@@ -25,6 +25,6 @@ for ii = 1:length(segments)
     z(3*ii-2:3*ii) = [stops_z(start); stops_z(stop); NaN];
 end
 
-lh = plot3(x,y,z,'r-','LineWidth',2);
+lh = plot3(x,y,z,'k-','LineWidth',2);
 
 set(lh,'Visible','on'); drawnow; % Add new lines to plot
