@@ -1,3 +1,4 @@
+clc;
 clear;
 close;
 
@@ -9,11 +10,7 @@ hold;
 [X,Y] = meshgrid(-5*pi:1:105*pi,-5*pi:1:105*pi);
 Z = 400*sin(X./100) + 400*(cos(Y./100-pi)+1);
 surface(X,Y,Z,'EdgeColor','none','FaceAlpha',0.87);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% Increase spacing to decrease number of nodes and solve problem faster
-spacing = 25*pi;
-[U,V] = meshgrid(0:spacing:100*pi,0:spacing:100*pi);
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+[U,V] = meshgrid(0:33*pi:100*pi,0:33*pi:100*pi);
 xypoints = [U(:), V(:)];
 stops_x = xypoints(:,1);
 stops_y = xypoints(:,2);
@@ -33,6 +30,13 @@ distances = sqrt(  (stops_x(edges(:,1)) - stops_x(edges(:,2))).^2 ...
                   +(stops_y(edges(:,1)) - stops_y(edges(:,2))).^2 ...
                   +(stops_z(edges(:,1)) - stops_z(edges(:,2))).^2);
 lengthDistance = length(distances);  %How many elements in distances (number of edges)
+
+% In case I need an example of how to plot a line
+% testX = [surfPoints(1,1), surfPoints(8,1)];
+% testY = [surfPoints(1,2), surfPoints(8,2)];
+% testZ = [surfPoints(1,3), surfPoints(8,3)];
+% plot3(testX,testY,testZ);
+
 nStops = length(surfPoints);
 
 %% Equality constraints
@@ -43,11 +47,11 @@ nStops = length(surfPoints);
 %
 %If node ii is part of an edge, make it part of the constraint
 %e.g. (1,2), (1,3), (1,4), (2,3), (2,4), (3,4) are all edges
-%row 1 of Aeq would be 1, 1, 1, 0, 0, 0, for edges that contain node 1
-%row 2 of Aeq would be 1, 0, 0, 1, 1, 0, for edges that contain node 2
-%row 3 of Aeq would be 0, 1, 0, 1, 0, 1, for edges that contain node 3
-%row 4 of Aeq would be 0, 0, 1, 0, 1, 1, for edges that contain node 4
-%rows 1-4 of beq would be 2, to show that only two edges are allowed per
+%row 2 of Aeq would be 1, 1, 1, 0, 0, 0, for edges that contain node 1
+%row 3 of Aeq would be 1, 0, 0, 1, 1, 0, for edges that contain node 2
+%row 4 of Aeq would be 0, 1, 0, 1, 0, 1, for edges that contain node 3
+%row 5 of Aeq would be 0, 0, 1, 0, 1, 1, for edges that contain node 4
+%rows 2-5 of beq would be 2, to show that only two edges are allowed per
 %node
 Aeq = [];
 %[Aeq; spalloc(nStops, length(edges), nStops * (nStops - 1))]; %Extends Aeq
@@ -78,8 +82,6 @@ for i = 1:size(edges,1)
         fprintf("Forbidding edge %d %d\n", edge(1), edge(2))
     end        
 end
-
-fprintf("Elapsed time: %fs\n",  cputime - startTime);
 
 %% Optimize using intlinprog
 
@@ -132,10 +134,10 @@ while numTours > 1
     fprintf('# of subtours: %d\n', numTours);
 end
 
-D = sum(distances.*x_tsp);
+
 fprintf("Shortest path between %d nodes. Elapsed time: %fs\n", nStops, cputime - startTime);
 title('Solution with Subtours Eliminated');
-fprintf("Total distance: %8.4f m\n", D)
+fprintf("Total distance: %8.4f\n", sum(distances.*x_tsp))
 hold off
 
 %% Second optimization for time vs energy consumption
@@ -145,10 +147,7 @@ fun = @(V) (A*D/V)+(B*(3.1214*sqrt(96.236+0.0296*V^2)^(3/2)+0.0296*V^3));
 x0 = 1;
 A = -1;
 b = 0;
-lb = realmin;   % Don't want zero, that's infinite time.
-ub = 20;    % 20m/s is a reasonable max speed. Not good for photography though
 
-options = optimoptions('fmincon','Display','off');
-V = fmincon(fun, x0, A, b, [], [], lb, ub, [], options);
-fprintf("Velocity: %12.4f m/s\nEnergy Consumption: %12.4f Watts\nTime: %12.4f s\n",...
+V = fmincon(fun, x0, A, b, , [], [],'Display', 'off');
+fprintf("Velocity: %12.4f m/s\tEnergy Consumption: %12.4f Watts%\tTime: %12.4f s\n",...
     V, (3.1214*sqrt(96.236+0.0296*V^2)^(3/2)+0.0296*V^3), D/V)
